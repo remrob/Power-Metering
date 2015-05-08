@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# Author: Michael Macherey
+
 import ssl
 from websocket import websocket
 import sys
@@ -21,29 +23,29 @@ bridgeCli = bridgeclient()
 bridgeCli.put('switch1','0')
 
 # Impulses of  Powermeters
-previousPowermeterImpulseOne = 0
-previousPowermeterImpulseTwo = 0
+previousPowermeterOneImpulse = 0
+previousPowermeterTwoImpulse = 0
 
 ### timer for looping Bridge output
 
 def loopImpulseOneBridge():
-         global previousPowermeterImpulseOne
+         global previousPowermeterOneImpulse
          currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseOne'))
          print(currentPowermeterImpulse)
-         kWmin = currentPowermeterImpulse - previousPowermeterImpulseOne
-         if previousPowermeterImpulseOne != 0:
+         kWmin = currentPowermeterImpulse - previousPowermeterOneImpulse
+         if previousPowermeterOneImpulse != 0:
                 ws.send('{"variable":"1","value":'+str(kWmin)+'}')
-         previousPowermeterImpulseOne = currentPowermeterImpulse
+         previousPowermeterOneImpulse = currentPowermeterImpulse
          Timer(60.0, loopImpulseOneBridge).start()  # have to read every 60 minutes
 
 def loopImpulseTwoBridge():
-         global previousPowermeterImpulseTwo
+         global previousPowermeterTwoImpulse
          currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseTwo'))
          print(currentPowermeterImpulse)
-         kWmin = currentPowermeterImpulse - previousPowermeterImpulseTwo
-         if previousPowermeterImpulseTwo != 0:
+         kWmin = currentPowermeterImpulse - previousPowermeterTwoImpulse
+         if previousPowermeterTwoImpulse != 0:
                 ws.send('{"variable":"2","value":'+str(kWmin)+'}')
-         previousPowermeterImpulseTwo = currentPowermeterImpulse
+         previousPowermeterTwoImpulse = currentPowermeterImpulse
          Timer(60.0, loopImpulseTwoBridge).start()  # have to read every 60 minutes
 
 ##### end Bridge ##################
