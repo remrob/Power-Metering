@@ -1,122 +1,116 @@
 #!/usr/bin/python
 
-# Author: Michael Macherey
-
+import logging
 import ssl
 from websocket import websocket
 import sys
-from pprint import pprint
 import json
 from threading import Timer
 
+# Author: Michael Macherey
+
+###### logging #####
+logger = logging.getLogger('powermeter')
+logger.setLevel(logging.DEBUG) #ERROR
+# create file handler which logs even debug messages
+fh = logging.FileHandler('/root/powermeter.log')
+fh.setLevel(logging.DEBUG) #DEBUG
+
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(fh)
 
 ###### begin Bridge ############
-
-
 sys.path.insert(0, '/usr/lib/python2.7/bridge/')
 from bridgeclient import BridgeClient as bridgeclient
 
-
 bridgeCli = bridgeclient()
 
-### initial switch state is off
-bridgeCli.put('switch1','0')
-
 # Impulses of  Powermeters
-previousPowermeterOneImpulse = 0
-previousPowermeterTwoImpulse = 0
+#previousPowermeterImpulseOne = 0
+#previousPowermeterImpulseTwo = 0
 
+### timer for looping Bridge output
 ### timer for looping Bridge output
 
 def loopImpulseOneBridge():
-         global previousPowermeterOneImpulse
-         currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseOne'))
-         print(currentPowermeterImpulse)
-         kWmin = currentPowermeterImpulse - previousPowermeterOneImpulse
-         if previousPowermeterOneImpulse != 0:
-                ws.send('{"variable":"1","value":'+str(kWmin)+'}')
-         previousPowermeterOneImpulse = currentPowermeterImpulse
-         Timer(60.0, loopImpulseOneBridge).start()  # have to read every 60 minutes
+    global previousPowermeterImpulseOne,bridgeCli
+    logger.info("ws.sock at ImpOne:  "+str(ws.sock))
+    if ws.sock: #is None:
+        if not bridgeCli:
+            logger.error('ImpulseOne Bridge doesnot exist')
+        try:
+            currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseOne'))
+            logger.info('PowerMeterImpulseOne = '+ str(currentPowermeterImpulse))
+        except Exception as e:
+            logger.error('Can not read Bridge ImpulseOne')
+            logger.error(e)
+        else:
+            logger.info("CurrentPowermeterImpulse One = " + str(currentPowermeterImp$
+            kWmin = currentPowermeterImpulse - previousPowermeterImpulseOne
+            if previousPowermeterImpulseOne != 0:
+                try:
+                    ws.send('{"variable":"1","value":'+str(kWmin)+'}')
+                except Exception as e:
+                    logger.error('In loopImpulseOneBridge ws.send broken')
+
+            previousPowermeterImpulseOne = currentPowermeterImpulse
+    Timer(60.0, loopImpulseOneBridge).start()  # have to read every 60 minutes
 
 def loopImpulseTwoBridge():
-         global previousPowermeterTwoImpulse
-         currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseTwo'))
-         print(currentPowermeterImpulse)
-         kWmin = currentPowermeterImpulse - previousPowermeterTwoImpulse
-         if previousPowermeterTwoImpulse != 0:
-                ws.send('{"variable":"2","value":'+str(kWmin)+'}')
-         previousPowermeterTwoImpulse = currentPowermeterImpulse
-         Timer(60.0, loopImpulseTwoBridge).start()  # have to read every 60 minutes
-
-##### end Bridge ##################
-
-#### begin ws debugTrace ################
-print sys.argv
-
-for i in range(len(sys.argv)):
-    if i == 0:
-        print "Funktion name: %s" % sys.argv[0]
-    else:
-        print "%d. Argument: %s" % (i,sys.argv[i])
-
-##### end ws debugTrace #################
+    global previousPowermeterImpulseTwo
+    logger.info("ws.sock at ImpTwo:  "+str(ws.sock))
+    if ws.sock: #is None
+        if not bridgeCli:
+            logger.error('ImpulseOne Bridge doesnot exist')
+        try:
+            currentPowermeterImpulse = float(bridgeCli.get('PowerMeterImpulseTwo'))
+            logger.info('PowerMeterImpulseTwo = '+ str(currentPowermeterImpulse))
+        except Exception as e:
+            logger.error('Can not read Bridge ImpulseTwo')
+            logger.error(e)
+        else:
+            logger.info("CurrentPowermeterImpulse Two = " + str(currentPowermeterImp$
+            kWmin = currentPowermeterImpulse - previousPowermeterImpulseTwo
+            if previousPowermeterImpulseTwo != 0:
+                try:
+                    ws.send('{"variable":"2","value":'+str(kWmin)+'}')
+                except Exception as e:
+                    logger.error('In loopImpulseTwoBridge() ws.send broken')
+            previousPowermeterImpulseTwo = currentPowermeterImpulse
+    Timer(60.0, loopImpulseTwoBridge).start()  # have to read every 60 minutes
 
 ##### begin Websocket #############
-
-def on_message(ws, message):
-        global savedTemperature
-        jsonData = json.loads(message)
-        print "unit = %s" % jsonData["unit"]
-        print (type(jsonData["task"]))
-        print "task = %s" % jsonData["task"]
-
-###  REMROB control
-        if int(jsonData["unit"]) == 20 and int(jsonData ["task"]) == 30:
-          print("switchOn")
-          bridgeCli.put('switch1','1')
-          ws.send('{"unit":20,"state":30}')
-        elif int(jsonData ["unit"]) == 20 and int(jsonData ["task"]) == 50:
-          print("switchOff")
-          bridgeCli.put('switch1','0')
-          ws.send('{"unit":20,"state":50}')
-        else:
-          print "error"
+#def on_message(ws, message):
+    #logger.info("on_message() message received"+ str(message))
 
 def on_error(ws, error):
-        print (error)
-#       pprint(vars(ws.sock.sock))
+    # pprint(vars(ws.sock.sock))
+    logger.exception("Exception in on_error() = " + str(error))
 
 def on_close(ws):
-        print ("... closed ...")
+    logger.info("... closed ...")
+    Timer(20.0, startSocket).start()
 
 def on_open(ws):
-        Timer(1.0, loopImpulseOneBridge).start()
-        Timer(2.0, loopImpulseTwoBridge).start()
-        print ("opend")
-#       pprint(vars(ws))
-        ### show initial state of switch as Off
-        ws.send('{"unit":20,"state":50}')
+    # Impulses of Powermeters, important for resetting if reconnect, as otherwise off
+    global previousPowermeterImpulseOne,previousPowermeterImpulseTwo
+    previousPowermeterImpulseOne = 0
+    previousPowermeterImpulseTwo = 0
+    logger.info("... opend ...")
+    ####### initial timers ##########
+    Timer(5.0, loopImpulseOneBridge()).start()
+    Timer(40.0, loopImpulseTwoBridge()).start()
 
-if __name__ == "__main__":
-#websocket.enableTrace(True)
-    if len(sys.argv) < 2:
-#       host = "wss://echo.websocket.org/"
-        print("passed")
-        host = 'wss://rws.remrob.com/?model=741&id=1&key=741' # default
-    else:
-        host = sys.argv[1]
+ws = websocket.WebSocketApp('wss://objects.remrob.com/v1/?model=741&id=1&key=741',on$
 
-ws = websocket.WebSocketApp(host,
-                               on_message = on_message,
-                                on_error = on_error,
-                                on_close = on_close)
+def startSocket():
+    global ws
+    try:
+        ws.run_forever()
+    except Exception as e:
+        logger.error('In startSocket() ws.run_forever broken')
 
-#ws = websocket.WebSocketApp("wss://echo.websocket.org")
-
-ws.on_open = on_open
-#    ws.on_message = on_message
-#    ws.on_error = on_error
-#    ws.on_close = on_close
-ws.run_forever()
-##### end websocket #############
-
+startSocket()
